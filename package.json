@@ -1,7 +1,7 @@
 {
   "name": "@justmytwospence/codex-cache-guard",
   "version": "0.1.0",
-  "description": "Codex hooks that warn before a prompt re-sends a large thread uncached, and a cache status line for tmux.",
+  "description": "Codex hooks that warn before a prompt re-sends a large thread uncached, report doomed threads to herdr, and a cache status line for tmux.",
   "type": "module",
   "license": "MIT",
   "private": true,

@@ -1,7 +1,8 @@
 # codex-cache-guard
 
 [Codex CLI](https://github.com/openai/codex) hooks that warn before a prompt would re-send a large
-thread uncached, and a one-line cache status for tmux. Part of the cache-guard family:
+thread uncached, report doomed threads to herdr's agents sidebar, and print a one-line cache status
+for tmux. Part of the cache-guard family:
 [pi-cache-guard](https://github.com/justmytwospence/pi-cache-guard),
 [claude-cache-guard](https://github.com/justmytwospence/claude-cache-guard) and
 [opencode-cache-guard](https://github.com/justmytwospence/opencode-cache-guard) share its core
@@ -44,6 +45,34 @@ when the resumed thread is both idle past the threshold and large:
   the first prompt re-sends 180k tokens uncached. /compact or a new thread is cheaper.
 ```
 
+**Tells herdr.** Inside a [herdr](https://herdr.dev) pane the hooks report the pane token
+`cache`, so herdr's agents sidebar can show which threads are doomed to a miss: `cold? 180k`
+while the next prompt would re-send that much uncached (at least `warn.minTokens`), `cold 180k`
+after a model switch, and nothing while the thread is warm or small. Codex has no long-lived
+plugin process, so the token follows the hooks:
+
+- `UserPromptSubmit`: a held prompt reports the value; a prompt that goes out clears it (its
+  request reads or rewrites the cache either way).
+- `SessionStart`: a resumed or forked thread reports what its rollout says; a new, cleared or
+  compacted one clears.
+- `Stop`: clears, then leaves a detached sleeper (`codex-cache-guard herdr-check`, its pid in
+  `~/.cache/codex-cache-guard/<session>.sleeper.json`) that wakes after `warn.idleMinutes`,
+  re-reads the rollout and reports the thread cold if nothing happened since. The next `Stop`
+  replaces it; a sleeper whose record changed underneath it stands down.
+- `SessionEnd`: kills the sleeper and clears the token.
+
+Show it in herdr's agents sidebar with a custom token in `~/.config/herdr/config.toml`:
+
+```toml
+[ui.sidebar.agents]
+rows = [["state_icon", "workspace", { token = "$cache", fg = "#5f87d7", rules = [{ starts_with = "cold?", dim = true }] }]]
+```
+
+`src/herdr.ts` speaks herdr's socket protocol (`pane.report_metadata`, source `cache-guard`) and
+is shared verbatim with the pi and opencode ports. `"herdr": { "enabled": false }` turns it off;
+outside herdr (no `HERDR_ENV`) nothing is sent. The token carries a one-day TTL, so a thread
+whose process died without its `SessionEnd` drops off the sidebar by itself.
+
 **Status for tmux.** Codex's own status line is a fixed list of items, so the clock lives outside
 it:
 
@@ -81,30 +110,24 @@ PATH is too old). Clone it, then add the hooks to `~/.codex/hooks.json` and trus
 {
   "hooks": {
     "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "command": "\"$HOME/.local/share/plugins/codex-cache-guard/bin/codex-cache-guard\" prompt",
-            "timeout": 10,
-            "type": "command"
-          }
-        ]
-      }
+      { "hooks": [ { "command": "if [ -x \"$HOME/.local/share/plugins/codex-cache-guard/bin/codex-cache-guard\" ]; then \"$HOME/.local/share/plugins/codex-cache-guard/bin/codex-cache-guard\" prompt; fi", "timeout": 10, "type": "command" } ] }
     ],
     "SessionStart": [
-      {
-        "hooks": [
-          {
-            "command": "\"$HOME/.local/share/plugins/codex-cache-guard/bin/codex-cache-guard\" session-start",
-            "timeout": 10,
-            "type": "command"
-          }
-        ]
-      }
+      { "hooks": [ { "command": "if [ -x \"$HOME/.local/share/plugins/codex-cache-guard/bin/codex-cache-guard\" ]; then \"$HOME/.local/share/plugins/codex-cache-guard/bin/codex-cache-guard\" session-start; fi", "timeout": 10, "type": "command" } ] }
+    ],
+    "Stop": [
+      { "hooks": [ { "command": "if [ -x \"$HOME/.local/share/plugins/codex-cache-guard/bin/codex-cache-guard\" ]; then \"$HOME/.local/share/plugins/codex-cache-guard/bin/codex-cache-guard\" stop; fi", "timeout": 10, "type": "command" } ] }
+    ],
+    "SessionEnd": [
+      { "hooks": [ { "command": "if [ -x \"$HOME/.local/share/plugins/codex-cache-guard/bin/codex-cache-guard\" ]; then \"$HOME/.local/share/plugins/codex-cache-guard/bin/codex-cache-guard\" session-end; fi", "timeout": 3, "type": "command" } ] }
     ]
   }
 }
 ```
+
+The `if [ -x ... ]` guard keeps a host without the checkout quiet. `Stop` and `SessionEnd` only
+feed herdr; without herdr they are harmless (a clear that goes nowhere, a sleeper that is not
+started). Codex caps `SessionEnd` hooks at 3 seconds.
 
 In the dotfiles this is one line in `dot_config/plugins/pins.tmpl`,
 
@@ -112,9 +135,9 @@ In the dotfiles this is one line in `dot_config/plugins/pins.tmpl`,
 git justmytwospence/codex-cache-guard <commit>
 ```
 
-and the two handlers above added to the `UserPromptSubmit` and `SessionStart` arrays in
-`dot_codex/hooks.managed.json`. Hooks from `hooks.json` run only once trusted in `/hooks`, and a
-changed hook (the command line, not the script) must be trusted again.
+and the four handlers above added to the matching arrays in `dot_codex/hooks.managed.json`. Hooks
+from `hooks.json` run only once trusted in `/hooks`, and a changed hook (the command line, not the
+script) must be trusted again.
 
 ## Settings
 
@@ -127,7 +150,8 @@ objects merge. Codex reads `enabled` and `warn`:
 ```
 
 `minCost` is unused here: Codex carries no prices. The thread's size is the last request's input
-plus its output, which is what the next request re-sends.
+plus its output, which is what the next request re-sends. `"herdr": { "enabled": true }` is the
+herdr token.
 
 ## Limits
 
@@ -141,11 +165,15 @@ plus its output, which is what the next request re-sends.
 - The hook runs in `$SHELL -lc` with the session's environment, so a `node` from nvm that is
   older than 22.6 and first on PATH is skipped in favor of `/opt/homebrew/bin/node` or
   `/usr/local/bin/node`.
+- The herdr sleeper is a Node process that waits `warn.idleMinutes` with a timer, so a laptop
+  asleep for the whole window reports late (after the next tick), and a thread whose Codex was
+  killed without `SessionEnd` keeps its sleeper until it fires once; the token then expires
+  after a day.
 
 ## Development
 
 ```sh
-npm ci && npm run check      # tsc, then vitest (unit tests and the CLI end to end)
+npm ci && npm run check      # tsc, then vitest (unit tests, the CLI end to end, the hooks against a fake herdr socket)
 codex exec --skip-git-repo-check -C /tmp/scratch --dangerously-bypass-hook-trust \
   -c 'hooks.UserPromptSubmit=[{hooks=[{type="command",command="'"$PWD"'/bin/codex-cache-guard prompt",timeout=10}]}]' \
   resume <thread id> 'a prompt'
