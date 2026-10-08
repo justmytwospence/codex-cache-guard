@@ -23,7 +23,7 @@ thread is large (`warn.minTokens`, default 100k tokens), the hook blocks it once
 ```
 
 Codex gives hooks no dialog, so the choices are in the message rather than a menu: the same prompt
-again sends it; `/compact` (which can take focus text) and then the prompt continues on a summary;
+again sends it; `/compact` and then the prompt continues on a summary;
 `/new` and then the prompt starts fresh.
 
 Codex clears the composer; Up recalls the prompt, and the same text sent again within
