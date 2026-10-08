@@ -32,7 +32,7 @@ describe("decidePrompt", () => {
     expect(first.action).toBe("block");
     if (first.action !== "block") throw new Error("unreachable");
     expect(first.reason).toBe(
-      "Idle 4h: the prompt cache has probably expired, so this prompt may re-cache 180k tokens. Send the same prompt again within 2m to send it anyway (Up arrow recalls it), or /compact or /new first.",
+      "Idle 4h: the prompt cache has probably expired, so this prompt may re-cache 180k tokens. Up arrow recalls it: send it again within 2m to go ahead, run /compact first to continue on a summary, or /new first to start without the history.",
     );
     expect(first.arm).toEqual({ key: "s1", text: "carry on ", at: NOW });
     memo.arm(first.arm.key, first.arm.text, first.arm.at);

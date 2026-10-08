@@ -18,9 +18,13 @@ thread is large (`warn.minTokens`, default 100k tokens), the hook blocks it once
 ```
 • Blocked by hook
   └ Idle 4h: the prompt cache has probably expired, so this prompt may re-cache 180k tokens.
-    Send the same prompt again within 2m to send it anyway (Up arrow recalls it), or /compact
-    or /new first.
+    Up arrow recalls it: send it again within 2m to go ahead, run /compact first to continue on a
+    summary, or /new first to start without the history.
 ```
+
+Codex gives hooks no dialog, so the choices are in the message rather than a menu: the same prompt
+again sends it; `/compact` (which can take focus text) and then the prompt continues on a summary;
+`/new` and then the prompt starts fresh.
 
 Codex clears the composer; Up recalls the prompt, and the same text sent again within
 `warn.confirmSeconds` (default 120) goes through. A different prompt is held again. Two causes:

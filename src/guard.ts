@@ -44,7 +44,7 @@ export function decidePrompt(
   const window = formatDuration(settings.warn.confirmSeconds * 1000);
   return {
     action: "block",
-    reason: `${describeMiss(cold, state.tokens, undefined)} Send the same prompt again within ${window} to send it anyway (Up arrow recalls it), or /compact or /new first.`,
+    reason: `${describeMiss(cold, state.tokens, undefined)} Up arrow recalls it: send it again within ${window} to go ahead, run /compact first to continue on a summary, or /new first to start without the history.`,
     arm: { key: input.session_id, text: input.prompt, at: now },
   };
 }

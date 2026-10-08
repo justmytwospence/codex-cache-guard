@@ -49,7 +49,7 @@ describe("codex-cache-guard CLI", () => {
     expect(first.code).toBe(0);
     const parsed = JSON.parse(first.out);
     expect(parsed.decision).toBe("block");
-    expect(parsed.reason).toMatch(/^Idle 4h: .*180k tokens\. Send the same prompt again within 2m/);
+    expect(parsed.reason).toMatch(/^Idle 4h: .*180k tokens\. Up arrow recalls it: send it again within 2m/);
     expect(Object.keys(parsed).sort()).toEqual(["decision", "reason"]); // deny_unknown_fields upstream
     expect(readdirSync(path.join(home, "cache", "codex-cache-guard"))).toHaveLength(1);
     const again = run(["prompt"], hook(), env);
