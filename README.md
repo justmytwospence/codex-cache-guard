@@ -6,7 +6,7 @@ for tmux. Part of the cache-guard family:
 [pi-cache-guard](https://github.com/justmytwospence/pi-cache-guard),
 [claude-cache-guard](https://github.com/justmytwospence/claude-cache-guard) and
 [opencode-cache-guard](https://github.com/justmytwospence/opencode-cache-guard) share its core
-(`src/core.ts`) and settings file.
+(`src/core.ts`), its Jev logic (`src/lean.ts`, unused here; see below) and settings file.
 
 ## What it does
 
@@ -104,6 +104,19 @@ at 33 minutes and 7 hours: elapsed time does not predict a miss, so a keep-alive
 timed, only sent blindly, and every ping draws plan usage. The 3-hour idle warning is the useful
 part; `/compact` before a long break is the fix.
 
+**Jev: not here.** The other ports use [Jev](https://docs.typesafe.ai) to trim large tool output
+before the model reads it and to compact in about a second. Codex hooks cannot do either cleanly
+(Codex 0.162):
+
+- **Trimming.** `PostToolUse` can replace a tool's result only by blocking it. With code mode on,
+  which current models use for shell commands, `decision: "block"` hands the trimmed text to the
+  script as a rejected promise, so the model reads it as `Script error:` and may take the command
+  for a failure; `continue: false` leaves the script the original output. `updatedMCPToolOutput` is
+  parsed but not supported. Codex's own `tool_output_token_limit` keeps a head and tail instead.
+- **Compaction.** `PreCompact` can only stop a compaction, not supply or filter its summary.
+
+`src/lean.ts` is kept verbatim for when Codex allows it.
+
 ## Install
 
 Node 22.6 or later (22.18+ or 23.6+ strip types without a flag; the wrapper passes
@@ -147,7 +160,8 @@ script) must be trusted again.
 
 `~/.config/agents/cache-guard.json` (shared with the other ports), then `~/.codex/cache-guard.json`,
 then the project's `.agents/cache-guard.json` and `.codex/cache-guard.json`. Later files win;
-objects merge. Codex reads `enabled` and `warn`:
+objects merge. Codex reads `enabled`, `warn` and `herdr` (`jev`, `trim` and `compact` are for the
+other ports):
 
 ```json
 { "enabled": true, "warn": { "enabled": true, "minTokens": 100000, "idleMinutes": 180, "confirmSeconds": 120 } }
