@@ -73,7 +73,7 @@ rows = [["state_icon", "workspace", { token = "$cache", fg = "#5f87d7", rules = 
 ```
 
 `src/herdr.ts` speaks herdr's socket protocol (`pane.report_metadata`, source `cache-guard`) and
-is shared verbatim with the pi and opencode ports. `"herdr": { "enabled": false }` turns it off;
+is shared verbatim with the opencode port (pi-cache-guard goes through pi-herdr's event bus). `"herdr": { "enabled": false }` turns it off;
 outside herdr (no `HERDR_ENV`) nothing is sent. The token carries a one-day TTL, so a thread
 whose process died without its `SessionEnd` drops off the sidebar by itself.
 
