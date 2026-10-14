@@ -50,8 +50,8 @@ when the resumed thread is both idle past the threshold and large:
 ```
 
 **Tells herdr.** Inside a [herdr](https://herdr.dev) pane the hooks report the pane token
-`cache`, so herdr's agents sidebar can show which threads are doomed to a miss: `cold? 180k`
-while the next prompt would re-send that much uncached (at least `warn.minTokens`), `cold 180k`
+`cache`, so herdr's agents sidebar can show which threads are doomed to a miss: `❄? 180k`
+while the next prompt would re-send that much uncached (at least `warn.minTokens`), `❄ 180k`
 after a model switch, and nothing while the thread is warm or small. Codex has no long-lived
 plugin process, so the token follows the hooks:
 
@@ -69,7 +69,7 @@ Show it in herdr's agents sidebar with a custom token in `~/.config/herdr/config
 
 ```toml
 [ui.sidebar.agents]
-rows = [["state_icon", "workspace", { token = "$cache", fg = "#5f87d7", rules = [{ starts_with = "cold?", dim = true }] }]]
+rows = [["state_icon", "workspace", { token = "$cache", fg = "#5f87d7", rules = [{ starts_with = "❄?", dim = true }] }]]
 ```
 
 `src/herdr.ts` speaks herdr's socket protocol (`pane.report_metadata`, source `cache-guard`) and

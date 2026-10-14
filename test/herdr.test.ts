@@ -33,8 +33,8 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 describe("herdr token", () => {
   test("only big cold threads, always the idle guess for Codex", () => {
-    expect(tokenValue({ kind: "idle", idleMs: 4 * HOUR }, 180_000, DEFAULT_SETTINGS)).toBe("cold? 180k");
-    expect(tokenValue({ kind: "model", from: "a", to: "b" }, 180_000, DEFAULT_SETTINGS)).toBe("cold 180k");
+    expect(tokenValue({ kind: "idle", idleMs: 4 * HOUR }, 180_000, DEFAULT_SETTINGS)).toBe("❄? 180k");
+    expect(tokenValue({ kind: "model", from: "a", to: "b" }, 180_000, DEFAULT_SETTINGS)).toBe("❄ 180k");
     expect(tokenValue({ kind: "idle", idleMs: 4 * HOUR }, 20_000, DEFAULT_SETTINGS)).toBeUndefined();
     expect(tokenValue(undefined, 180_000, DEFAULT_SETTINGS)).toBeUndefined();
     expect(tokenValue({ kind: "idle", idleMs: 1 }, 180_000, mergeSettings(DEFAULT_SETTINGS, ['{"herdr":{"enabled":false}}']))).toBeUndefined();
@@ -65,7 +65,7 @@ describe("herdr token", () => {
   test("outside herdr nothing is sent", async () => {
     expect(herdrTarget({})).toBeUndefined();
     expect(herdrTarget({ HERDR_ENV: "1", HERDR_SOCKET_PATH: "/s", HERDR_PANE_ID: "w1:p1" })).toEqual({ socketPath: "/s", paneId: "w1:p1" });
-    expect(await sendHerdr({ socketPath: "/nonexistent.sock", paneId: "x" }, herdrRequest({ socketPath: "/nonexistent.sock", paneId: "x" }, "codex", "cold 1k"))).toBe(false);
+    expect(await sendHerdr({ socketPath: "/nonexistent.sock", paneId: "x" }, herdrRequest({ socketPath: "/nonexistent.sock", paneId: "x" }, "codex", "❄ 1k"))).toBe(false);
   });
 });
 
@@ -135,7 +135,7 @@ describe("hooks against a herdr socket", () => {
     rollout(file, cwd, Date.now() - 4 * HOUR, "gpt-6.1-sol", 180_000);
     const blocked = await run(["prompt"], hook("UserPromptSubmit", { prompt: "go on" }));
     expect(JSON.parse(blocked.out).decision).toBe("block");
-    expect(last()).toMatchObject({ pane_id: "w9:p3", source: "cache-guard", agent: "codex", tokens: { cache: "cold? 180k" }, ttl_ms: 86_400_000 });
+    expect(last()).toMatchObject({ pane_id: "w9:p3", source: "cache-guard", agent: "codex", tokens: { cache: "❄? 180k" }, ttl_ms: 86_400_000 });
     expect(reports.at(-1)!.method).toBe("pane.report_metadata");
     const sent = await run(["prompt"], hook("UserPromptSubmit", { prompt: "go on" }));
     expect(sent).toEqual({ code: 0, out: "", err: "" });
@@ -147,12 +147,12 @@ describe("hooks against a herdr socket", () => {
     reports.length = 0;
     rollout(file, cwd, Date.now() - 4 * HOUR, "gpt-6.1-sol", 180_000);
     expect((await run(["session-start"], hook("SessionStart", { source: "resume" }))).out).toContain("systemMessage");
-    expect(tokens()).toEqual(["cold? 180k"]);
+    expect(tokens()).toEqual(["❄? 180k"]);
     rollout(file, cwd, Date.now() - 4 * HOUR, "gpt-6.1-sol", 20_000);
     await run(["session-start"], hook("SessionStart", { source: "resume" }));
-    expect(tokens()).toEqual(["cold? 180k", null]);
+    expect(tokens()).toEqual(["❄? 180k", null]);
     await run(["session-start"], hook("SessionStart", { source: "startup" }));
-    expect(tokens()).toEqual(["cold? 180k", null, null]);
+    expect(tokens()).toEqual(["❄? 180k", null, null]);
   });
 
   test("stop: clears, leaves a sleeper that reports the thread cold once idle; session-end kills it", async () => {
@@ -165,7 +165,7 @@ describe("hooks against a herdr socket", () => {
     expect(recorded.pid).toBeGreaterThan(0);
     expect(() => process.kill(recorded.pid, 0)).not.toThrow(); // alive, detached from the hook
     await wait(1_500);
-    expect(tokens()).toEqual([null, "cold? 180k"]);
+    expect(tokens()).toEqual([null, "❄? 180k"]);
     expect(() => process.kill(recorded.pid, 0)).toThrow(); // exited after reporting
 
     // A second Stop replaces the sleeper; SessionEnd kills the new one before it fires.
